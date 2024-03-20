@@ -1,0 +1,3 @@
+---
+tick_installdir: /opt/tick
+docker_version: 6.1.3

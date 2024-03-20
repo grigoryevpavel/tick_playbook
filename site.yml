@@ -1,0 +1,78 @@
+- name: Install Docker and Docker-Compose
+  hosts: tick
+  become: true
+  tags: docker
+  tasks:
+    - name: Install prerequisites
+      apt: 
+        name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        update_cache: yes
+    - name: Install docker gpg key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg  
+    - name: Add Docker APT repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+
+    - name: Install Docker CE
+      apt:
+        name: ['docker-ce', 'docker-ce-cli', 'containerd.io']
+        update_cache: yes
+
+    - name: Install prerequisites for docker-compose
+      apt:
+        name: ['python3-pip', 'python3-setuptools', 'virtualenv']
+
+    - name: Install docker-compose
+      pip:
+        name: docker-compose
+        state: latest 
+
+    - name: Enable docker daemon
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+- name: Install TICK
+  become: true
+  hosts: tick
+  tags: tick
+  tasks:
+    - name: Install prerequisites
+      apt:
+        name: 
+          - git
+        update_cache: true
+    - name: Downgrade docker for compatibility
+      pip:
+        name: "docker=={{docker_version}}"
+
+    - name: Create tick directory
+      file:
+        path: "{{tick_installdir}}"
+        state: directory
+        mode: 0700    
+    - name: Clone Tick repo
+      git:
+        repo: https://github.com/influxdata/sandbox.git
+        dest: "{{tick_installdir}}"
+        clone: true
+        update: false 
+
+    - name: Copy fixed sandbox(without browser popup)
+      copy:
+        src: sandbox
+        dest: "{{tick_installdir}}/sandbox"
+        owner: root
+        group: root
+        mode: '0755'
+        force: true 
+        
+    - name: Start docker containers
+      community.docker.docker_compose: 
+        project_src: "{{tick_installdir}}"
